@@ -64,10 +64,13 @@ class HomeController extends Controller
      */
     public function getRandomUser(){
         $users = HasilResponse::with('namaProfesi')
-                            ->select('id', 'nama', 'jenis_kelamin', 'nama_jalan', 'email', 'profesi')   
+                            ->select('id', 'nama', 'jenis_kelamin', 'nama_jalan', 'email', 'profesi', 'plain_json')   
                             ->get();
+        // dd(json_decode($users[0]->plain_json)->results[0]->login->uuid);
         $result = [];
         foreach($users as $key => $user){
+            // dd($user);
+            $uuid = json_decode($user->plain_json)->results[0]->login->uuid;
             $object = new stdClass;
             $object->nomor = $user->id;
             $object->nama = $user->nama;
@@ -75,6 +78,9 @@ class HomeController extends Controller
             $object->jalan = $user->nama_jalan;
             $object->email = $user->email;
             $object->profesi = $user->namaProfesi->profesi;
+            $object->uuid = $uuid;
+            $object->angka = preg_replace( '/[^0-9]/', '', $uuid);
+            $object->huruf = preg_replace( '/[^a-zA-Z]/', '', $uuid);
             $result[] = $object;
         }
         // dd($result);
@@ -85,14 +91,28 @@ class HomeController extends Controller
      * @return array hasil perhitungan profesi seluruh user
      */
     public function getProfesi(){
-        $profesi = Profesi::with('users')->get();
+        $profesi = Profesi::with('users.jk')->get();
         $result = [];
+        $pria = 0;
+        $perempuan = 0;
         foreach($profesi as $pro){
             $object = new stdClass;
+            // dd($pro);
+            foreach($pro->users as $user){
+                $user->jk->kelamin === 'Laki - laki' ? $pria++ : $perempuan++;
+            }
+            $jenis_kelamin = [
+                'pria' => $pria,
+                'wanita' => $perempuan
+            ];
             $object->nomor = $pro->id;
             $object->profesi = $pro->profesi;
             $object->jumlah = $pro->users->count();
+            $object->ringkasan = $jenis_kelamin;
+            $pria = 0;
+            $perempuan = 0;
             $result[] = $object;
+            // dd($object);
         }
         return $result;
     }
